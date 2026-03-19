@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FinBot — Financial Intelligence</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #080b10;
+  --surface:   #0e1420;
+  --surface2:  #141c2e;
+  --surface3:  #1a2438;
+  --border:    #1f2d44;
+  --border2:   #263450;
+  --accent:    #00e5c0;
+  --accent2:   #3b82f6;
+  --accent3:   #f97316;
+  --accent4:   #a855f7;
+  --text:      #e2e8f0;
+  --text-dim:  #94a3b8;
+  --text-muted:#4a5568;
+  --success:   #22c55e;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Inter', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOP NAV ── */
+#topnav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:52px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.nav-logo-text{font-family:var(--mono);font-weight:600;font-size:16px;letter-spacing:-0.5px}
+.nav-logo-text span{color:var(--accent)}
+
+.nav-center{display:flex;align-items:center;gap:8px}
+#filter-input{
+  width:340px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:7px 14px;color:var(--text);font-family:var(--sans);
+  font-size:13px;outline:none;transition:all 0.2s;
+}
+#filter-input:focus{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(59,130,246,0.15)}
+#filter-input::placeholder{color:var(--text-muted)}
+#filter-btn{
+  padding:7px 14px;background:var(--accent2);border:none;border-radius:8px;
+  color:#fff;font-size:13px;font-family:var(--sans);cursor:pointer;transition:all 0.15s;
+}
+#filter-btn:hover{background:#2563eb}
+#clear-filter-btn{
+  padding:7px 10px;background:transparent;border:1px solid var(--border);
+  border-radius:8px;color:var(--text-muted);font-size:12px;cursor:pointer;
+  transition:all 0.15s;display:none;
+}
+#clear-filter-btn:hover{border-color:var(--danger);color:var(--danger)}
+
+#filter-badge{
+  font-size:11px;font-family:var(--mono);padding:3px 10px;border-radius:20px;
+  background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);
+  color:var(--accent2);display:none;max-width:200px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+.nav-right{display:flex;align-items:center;gap:10px}
+#upload-btn{
+  padding:7px 14px;background:var(--accent);border:none;border-radius:8px;
+  color:#000;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;
+}
+#upload-btn:hover{background:#00f0c8}
+#file-input{display:none}
+#status-badge{
+  font-size:11px;font-family:var(--mono);padding:4px 10px;border-radius:20px;
+  border:1px solid var(--border);color:var(--text-muted);
+  display:flex;align-items:center;gap:5px;
+}
+#status-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted)}
+#status-badge.ready .dot{background:var(--success)}
+#status-badge.ready{border-color:rgba(34,197,94,0.3);color:var(--success)}
+#forecast-btn{
+  padding:7px 12px;background:transparent;border:1px solid var(--border);
+  border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;
+  transition:all 0.15s;display:none;
+}
+#forecast-btn:hover{border-color:var(--accent4);color:var(--accent4)}
+
+/* ── KPI BAR ── */
+#kpi-bar{
+  display:none;flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 24px;gap:10px;overflow-x:auto;
+}
+#kpi-bar::-webkit-scrollbar{height:3px}
+#kpi-bar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.kpi-card{
+  min-width:140px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;flex-shrink:0;
+  transition:border-color 0.2s;cursor:default;
+}
+.kpi-card:hover{border-color:var(--border2)}
+.kpi-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-value{font-size:18px;font-family:var(--mono);font-weight:600;color:var(--text);white-space:nowrap}
+.kpi-value.currency::before{content:'₹ ';font-size:12px;color:var(--text-dim)}
+.kpi-trend{font-size:10px;margin-top:3px;color:var(--text-muted)}
+.kpi-trend.up{color:var(--success)}
+.kpi-trend.down{color:var(--danger)}
+
+/* ── BODY ── */
+#body-row{flex:1;display:flex;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:260px;min-width:260px;background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:16px;gap:14px;overflow-y:auto;
+}
+#sidebar::-webkit-scrollbar{width:3px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border2)}
+
+.sidebar-section-title{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;padding:0 2px}
+
+/* Upload zone */
+#upload-zone{
+  border:1.5px dashed var(--border2);border-radius:10px;padding:16px;
+  text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);
+}
+#upload-zone:hover,#upload-zone.drag-over{border-color:var(--accent);background:rgba(0,229,192,0.04)}
+#upload-zone .upload-icon{font-size:24px;margin-bottom:6px}
+#upload-zone p{font-size:12px;color:var(--text-dim);line-height:1.4}
+#upload-zone strong{color:var(--text)}
+
+/* Dataset info */
+#dataset-info{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;display:none;flex-direction:column;gap:8px}
+.ds-stat{display:flex;justify-content:space-between}
+.ds-stat .label{font-size:11px;color:var(--text-muted)}
+.ds-stat .value{font-size:11px;font-family:var(--mono);color:var(--text)}
+.col-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.chip{font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.numeric{border-color:rgba(0,229,192,0.3);color:var(--accent)}
+.chip.date{border-color:rgba(59,130,246,0.3);color:var(--accent2)}
+
+/* Suggestions */
+#suggestions{display:flex;flex-direction:column;gap:5px}
+.suggestion-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;color:var(--text-dim);font-size:12px;font-family:var(--sans);transition:all 0.15s;line-height:1.4}
+.suggestion-btn:hover{border-color:var(--accent);color:var(--text);background:rgba(0,229,192,0.04)}
+
+/* ── MAIN CHAT ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+#messages{
+  flex:1;overflow-y:auto;padding:20px 24px;
+  display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth;
+}
+#messages::-webkit-scrollbar{width:4px}
+#messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+#empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--text-muted);padding:40px}
+#empty-state .big-icon{font-size:44px;opacity:0.3}
+#empty-state h2{font-size:17px;font-weight:500;color:var(--text-dim)}
+#empty-state p{font-size:13px;line-height:1.6;max-width:300px}
+
+/* Messages */
+.message{display:flex;gap:10px;align-items:flex-start;animation:fadeUp 0.2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.message.user{flex-direction:row-reverse}
+.msg-avatar{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.message.user .msg-avatar{background:rgba(59,130,246,0.2)}
+.message.bot  .msg-avatar{background:rgba(0,229,192,0.12)}
+.msg-content{max-width:88%;width:88%;display:flex;flex-direction:column;gap:8px}
+.msg-bubble{padding:11px 15px;border-radius:10px;font-size:14px;line-height:1.65}
+.message.user .msg-bubble{background:rgba(59,130,246,0.13);border:1px solid rgba(59,130,246,0.22);border-radius:10px 10px 2px 10px}
+.message.bot  .msg-bubble{background:var(--surface2);border:1px solid var(--border);border-radius:10px 10px 10px 2px}
+.msg-bubble strong{color:var(--accent)}
+.msg-bubble code{background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px;color:var(--accent3)}
+.msg-bubble em{color:var(--accent2);font-style:normal}
+
+/* Chart */
+.chart-container{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;width:100%;min-height:380px}
+
+/* Table */
+.table-wrapper{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;max-height:300px;overflow-y:auto}
+.table-wrapper::-webkit-scrollbar{width:4px;height:4px}
+.table-wrapper::-webkit-scrollbar-thumb{background:var(--border2)}
+.table-wrapper table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+.table-wrapper th{background:var(--surface);padding:7px 10px;text-align:left;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);position:sticky;top:0;white-space:nowrap}
+.table-wrapper td{padding:6px 10px;border-bottom:1px solid rgba(31,45,68,0.6);color:var(--text-dim);white-space:nowrap}
+.table-wrapper tr:last-child td{border-bottom:none}
+.table-wrapper tr:hover td{background:rgba(255,255,255,0.02)}
+
+/* Insights panel */
+.insights-block{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.insights-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.insights-card.insights-panel{border-top:2px solid var(--accent)}
+.insights-card.tips-panel    {border-top:2px solid var(--accent2)}
+.insights-card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.insights-panel .insights-card-title{color:var(--accent)}
+.tips-panel     .insights-card-title{color:var(--accent2)}
+.insight-item{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);line-height:1.5}
+.insight-item:last-child{border-bottom:none}
+.insight-num{font-family:var(--mono);font-size:10px;color:var(--text-muted);min-width:14px;padding-top:2px}
+
+/* Forecast panel */
+.forecast-panel{background:var(--surface2);border:1px solid var(--border2);border-top:2px solid var(--accent4);border-radius:10px;padding:14px}
+.forecast-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.forecast-title{font-size:12px;font-weight:600;color:var(--accent4);display:flex;align-items:center;gap:6px}
+.forecast-meta{font-size:11px;color:var(--text-muted);font-family:var(--mono)}
+
+/* Code */
+.code-toggle{font-size:11px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:5px;padding:3px 0;width:fit-content}
+.code-toggle:hover{color:var(--text-dim)}
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--mono);font-size:11px;color:var(--text-dim);white-space:pre-wrap;display:none;overflow-x:auto}
+
+/* Agent log */
+.agent-toggle{font-size:11px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:5px;padding:3px 0;width:fit-content}
+.agent-toggle:hover{color:var(--accent)}
+.agent-log{background:var(--bg);border:1px solid rgba(0,229,192,0.12);border-radius:8px;padding:10px 12px;display:none;flex-direction:column;gap:3px}
+.agent-log-line{font-size:11px;font-family:var(--mono);color:var(--text-muted);line-height:1.5}
+.agent-log-line.planner {color:#a78bfa}
+.agent-log-line.executor{color:#38bdf8}
+.agent-log-line.critic  {color:#fb923c}
+.agent-log-line.step    {color:var(--text-dim);padding-left:12px}
+
+/* Typing */
+.typing{display:flex;align-items:center;gap:5px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;width:fit-content}
+.typing-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
+.typing-dot:nth-child(2){animation-delay:0.2s}
+.typing-dot:nth-child(3){animation-delay:0.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}
+
+/* System message */
+.sys-msg{font-size:12px;font-family:var(--mono);padding:8px 14px;border-radius:8px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);color:var(--accent2);animation:fadeUp 0.2s}
+.sys-msg.success{background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.2);color:var(--success)}
+.sys-msg.error  {background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:var(--danger)}
+
+/* Input */
+#input-area{padding:12px 24px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+#input-row{display:flex;gap:8px;align-items:flex-end;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;transition:border-color 0.2s}
+#input-row:focus-within{border-color:var(--accent)}
+#user-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;max-height:120px;line-height:1.5}
+#user-input::placeholder{color:var(--text-muted)}
+#send-btn{width:34px;height:34px;border-radius:7px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;color:#000;font-size:15px}
+#send-btn:hover{background:#00f0c8;transform:scale(1.05)}
+#send-btn:disabled{background:var(--border);cursor:not-allowed;transform:none}
+
+/* Forecast modal */
+#forecast-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
+.forecast-modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;width:820px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.forecast-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.forecast-modal-title{font-size:16px;font-weight:600;color:var(--accent4);display:flex;align-items:center;gap:8px}
+.modal-close{background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px 8px}
+.modal-close:hover{color:var(--text)}
+.forecast-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.forecast-stat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.forecast-stat .f-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px}
+.forecast-stat .f-value{font-size:16px;font-family:var(--mono);font-weight:600;color:var(--text)}
+
+/* Upload overlay */
+#upload-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:100}
+.upload-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;min-width:260px}
+.upload-spinner{width:36px;height:36px;margin:0 auto 14px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.upload-card h3{font-size:15px;margin-bottom:6px}
+.upload-card p{font-size:12px;color:var(--text-muted)}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav id="topnav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">📊</div>
+    <div class="nav-logo-text">Fin<span>Bot</span></div>
+  </div>
+
+  <div class="nav-center">
+    <input id="filter-input" type="text" placeholder='🔍 Filter: "only Germany" or "last quarter" or "amount > 50000"'
+      onkeydown="if(event.key==='Enter') applyFilter()">
+    <button id="filter-btn" onclick="applyFilter()">Apply Filter</button>
+    <button id="clear-filter-btn" onclick="clearFilter()">✕ Clear</button>
+    <span id="filter-badge"></span>
+  </div>
+
+  <div class="nav-right">
+    <button id="forecast-btn" onclick="openForecast()">📈 Forecast</button>
+    <button id="anomaly-btn" onclick="runAnomalyDetection()" style="display:none;padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">🚨 Anomalies</button>
+    <div id="status-badge"><div class="dot"></div><span id="status-text">No dataset</span></div>
+    <button id="upload-btn" onclick="document.getElementById('file-input').click()">⬆ Upload</button>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)">
+  </div>
+</nav>
+
+<!-- KPI BAR -->
+<div id="kpi-bar"></div>
+
+<!-- BODY -->
+<div id="body-row">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📁</div>
+      <p><strong>Upload Dataset</strong><br>.xlsx / .xls / .csv</p>
+    </div>
+
+    <div id="dataset-info">
+      <div class="ds-stat"><span class="label">File</span><span class="value" id="ds-filename">—</span></div>
+      <div class="ds-stat"><span class="label">Rows</span><span class="value" id="ds-rows">—</span></div>
+      <div class="ds-stat"><span class="label">Cols</span><span class="value" id="ds-cols">—</span></div>
+      <div class="ds-stat"><span class="label">Memory</span><span class="value" id="ds-mem">—</span></div>
+      <div class="col-chips" id="col-chips"></div>
+    </div>
+
+    <div class="sidebar-section-title">Try asking</div>
+    <div id="suggestions">
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Total PO amount by supplier</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Monthly spend trend</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Top 10 cost centers by spend</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Show duplicate purchase orders</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Outliers in PO net amount</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Average order value by country</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Spend by material group</button>
+      <button class="suggestion-btn" onclick="askSuggestion(this)">Compare spend by plant</button>
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main id="main">
+    <div id="messages">
+      <div id="empty-state">
+        <div class="big-icon">💬</div>
+        <h2>Upload your data to begin</h2>
+        <p>Drop an Excel or CSV file, then ask any financial question. KPIs load automatically. Use the filter bar to slice data instantly.</p>
+      </div>
+    </div>
+
+    <div id="input-area">
+      <div id="input-row">
+        <textarea id="user-input" rows="1" placeholder="Ask anything about your data…"
+          onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+        <button id="send-btn" onclick="sendMessage()" disabled>➤</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- FORECAST MODAL -->
+<div id="forecast-modal" onclick="if(event.target===this)closeForecast()">
+  <div class="forecast-modal-card">
+    <div class="forecast-modal-header">
+      <div class="forecast-modal-title">📈 Spend Forecast</div>
+      <button class="modal-close" onclick="closeForecast()">✕</button>
+    </div>
+    <div class="forecast-stats" id="forecast-stats"></div>
+    <div id="forecast-chart" style="height:380px"></div>
+  </div>
+</div>
+
+<!-- Upload overlay -->
+<div id="upload-overlay">
+  <div class="upload-card">
+    <div class="upload-spinner"></div>
+    <h3>Loading Dataset</h3>
+    <p id="overlay-msg">Processing your file…</p>
+  </div>
+</div>
+
+<script>
+// Auto-detect: same origin on Render, localhost in dev
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : window.location.origin;
+let datasetLoaded = false;
+
+// ── DRAG & DROP ──────────────────────────────────────────────────────────────
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) simulateUpload(file);
+});
+function simulateUpload(file) {
+  const dt = new DataTransfer(); dt.items.add(file);
+  document.getElementById('file-input').files = dt.files;
+  handleFileUpload({ target: { files: dt.files } });
+}
+
+// ── FILE UPLOAD ───────────────────────────────────────────────────────────────
+async function handleFileUpload(event) {
+  const file = event.target.files[0]; if (!file) return;
+  document.getElementById('upload-overlay').style.display = 'flex';
+  document.getElementById('overlay-msg').textContent = `Loading ${file.name}…`;
+
+  const form = new FormData(); form.append('file', file);
+  try {
+    const res  = await fetch(`${API}/upload`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+    datasetLoaded = true;
+
+    // Sidebar info
+    document.getElementById('dataset-info').style.display = 'flex';
+    document.getElementById('ds-filename').textContent = data.filename;
+    document.getElementById('ds-rows').textContent     = data.rows.toLocaleString();
+    document.getElementById('ds-cols').textContent     = data.columns;
+    document.getElementById('ds-mem').textContent      = `${data.memory_mb} MB`;
+
+    const chips = document.getElementById('col-chips');
+    chips.innerHTML = '';
+    data.numeric_columns.forEach(c => chips.innerHTML += `<span class="chip numeric" title="${c}">${c}</span>`);
+    data.date_columns.forEach(c   => chips.innerHTML += `<span class="chip date" title="${c}">${c}</span>`);
+    data.categorical_columns.slice(0,6).forEach(c => chips.innerHTML += `<span class="chip" title="${c}">${c}</span>`);
+
+    // Status
+    const badge = document.getElementById('status-badge');
+    badge.className = 'ready';
+    document.getElementById('status-text').textContent = `${data.rows.toLocaleString()} rows`;
+
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('forecast-btn').style.display = data.date_columns.length > 0 ? 'block' : 'none';
+    document.getElementById('anomaly-btn').style.display = 'block';
+
+    // Hide empty state
+    document.getElementById('empty-state').style.display = 'none';
+
+    // Welcome message
+    appendBotMessage(
+      `✅ **Dataset loaded: ${data.filename}**\n\n` +
+      `**${data.rows.toLocaleString()} rows** × **${data.columns} columns**\n\n` +
+      `Numeric: ${data.numeric_columns.slice(0,4).join(', ')}${data.numeric_columns.length>4?'…':''}\n` +
+      `${data.date_columns.length>0 ? `Date columns: ${data.date_columns.join(', ')}\n` : ''}` +
+      `\nKPIs loaded above ↑  Use the filter bar to slice data. Ask me anything!`,
+      null, null, null, null, null, null
+    );
+
+    // Load KPIs
+    loadKPIs();
+
+  } catch (err) {
+    alert(`Upload error: ${err.message}`);
+  } finally {
+    document.getElementById('upload-overlay').style.display = 'none';
+    event.target.value = '';
+  }
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+async function loadKPIs() {
+  try {
+    const res  = await fetch(`${API}/kpis`);
+    const data = await res.json();
+    renderKPIs(data.kpis || []);
+  } catch (e) { console.error('KPI error:', e); }
+}
+
+function renderKPIs(kpis) {
+  const bar = document.getElementById('kpi-bar');
+  bar.innerHTML = '';
+  bar.style.display = 'flex';
+
+  kpis.forEach(k => {
+    const val = formatKPIValue(k.value, k.format);
+    const trend = k.trend_hint === 'up' ? '▲' : k.trend_hint === 'down' ? '▼' : '●';
+    const trendCls = k.trend_hint === 'up' ? 'up' : k.trend_hint === 'down' ? 'down' : '';
+    bar.innerHTML += `
+      <div class="kpi-card">
+        <div class="kpi-label">${escHtml(k.name)}</div>
+        <div class="kpi-value ${k.format === 'currency' ? 'currency' : ''}">${val}</div>
+        <div class="kpi-trend ${trendCls}">${trend} ${k.format}</div>
+      </div>`;
+  });
+}
+
+function formatKPIValue(val, format) {
+  if (val === null || val === undefined || val === 0 && format === 'count') return '—';
+  if (format === 'currency') {
+    if (Math.abs(val) >= 1e7) return (val/1e7).toFixed(1) + ' Cr';
+    if (Math.abs(val) >= 1e5) return (val/1e5).toFixed(1) + ' L';
+    return Number(val).toLocaleString('en-IN', {maximumFractionDigits:2});
+  }
+  if (format === 'percent') return val.toFixed(1) + '%';
+  if (format === 'count')   return Number(val).toLocaleString();
+  return Number(val).toLocaleString('en-IN', {maximumFractionDigits:2});
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────────
+async function applyFilter() {
+  const text = document.getElementById('filter-input').value.trim();
+  if (!text || !datasetLoaded) return;
+
+  addSysMessage(`🔍 Applying filter: "${text}"…`);
+
+  try {
+    const res  = await fetch(`${API}/filter`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      const badge = document.getElementById('filter-badge');
+      const clearBtn = document.getElementById('clear-filter-btn');
+
+      if (data.cleared) {
+        badge.style.display = 'none';
+        clearBtn.style.display = 'none';
+        document.getElementById('status-text').textContent = `${data.rows.toLocaleString()} rows`;
+        addSysMessage('✅ Filter cleared — showing all data', 'success');
+      } else {
+        badge.textContent  = data.description;
+        badge.style.display = 'inline-block';
+        clearBtn.style.display = 'inline-block';
+        document.getElementById('status-text').textContent = `${data.rows.toLocaleString()} rows (${data.pct}%)`;
+        addSysMessage(`✅ Filter applied: ${data.description} — ${data.rows.toLocaleString()} rows (${data.pct}%)`, 'success');
+      }
+      loadKPIs(); // Refresh KPIs for new data view
+    } else {
+      addSysMessage(`❌ Filter error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    addSysMessage(`❌ ${err.message}`, 'error');
+  }
+  document.getElementById('filter-input').value = '';
+}
+
+async function clearFilter() {
+  document.getElementById('filter-input').value = 'clear';
+  await applyFilter();
+}
+
+// ── FORECAST ──────────────────────────────────────────────────────────────────
+async function openForecast() {
+  document.getElementById('forecast-modal').style.display = 'flex';
+  document.getElementById('forecast-stats').innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:10px">Loading forecast…</div>';
+  document.getElementById('forecast-chart').innerHTML = '';
+
+  try {
+    const res  = await fetch(`${API}/forecast`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ periods: 6 })
+    });
+    const data = await res.json();
+
+    if (!data.available) {
+      document.getElementById('forecast-stats').innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:10px">${data.reason}</div>`;
+      return;
+    }
+
+    // Stats
+    document.getElementById('forecast-stats').innerHTML = `
+      <div class="forecast-stat"><div class="f-label">Date Column</div><div class="f-value" style="font-size:13px">${data.date_col}</div></div>
+      <div class="forecast-stat"><div class="f-label">Value Column</div><div class="f-value" style="font-size:13px">${data.value_col}</div></div>
+      <div class="forecast-stat"><div class="f-label">Trend</div><div class="f-value" style="font-size:14px">${data.trend}</div></div>
+      <div class="forecast-stat"><div class="f-label">R² Score</div><div class="f-value">${data.r2}</div></div>
+      <div class="forecast-stat"><div class="f-label">Monthly Change</div><div class="f-value" style="font-size:13px">${formatKPIValue(data.slope_per_month,'currency')}</div></div>
+      <div class="forecast-stat"><div class="f-label">Forecast Periods</div><div class="f-value">6 months</div></div>`;
+
+    // Chart
+    const histTrace = {
+      type: 'scatter', mode: 'lines+markers',
+      name: 'Historical', x: data.hist_labels, y: data.hist_values,
+      line: { color: '#00e5c0', width: 2 },
+      marker: { color: '#00e5c0', size: 5 },
+    };
+    const forecastTrace = {
+      type: 'scatter', mode: 'lines+markers',
+      name: 'Forecast', x: data.future_labels, y: data.future_values,
+      line: { color: '#a855f7', width: 2, dash: 'dot' },
+      marker: { color: '#a855f7', size: 6, symbol: 'diamond' },
+    };
+
+    Plotly.newPlot('forecast-chart', [histTrace, forecastTrace], {
+      paper_bgcolor: 'transparent', plot_bgcolor: '#0e1420',
+      font: { color: '#94a3b8', family: 'JetBrains Mono', size: 11 },
+      margin: { t: 20, l: 70, r: 20, b: 60 },
+      xaxis: { gridcolor: '#1a2438', linecolor: '#1f2d44', tickfont: { size: 10 }, automargin: true },
+      yaxis: { gridcolor: '#1a2438', linecolor: '#1f2d44', tickfont: { size: 10 }, automargin: true },
+      legend: { font: { color: '#94a3b8', size: 11 }, bgcolor: 'transparent' },
+      shapes: [{
+        type: 'line',
+        x0: data.hist_labels[data.hist_labels.length - 1],
+        x1: data.hist_labels[data.hist_labels.length - 1],
+        y0: 0, y1: 1, yref: 'paper',
+        line: { color: '#4a5568', width: 1, dash: 'dot' },
+      }],
+      height: 360, autosize: true,
+    }, { responsive: true, displayModeBar: false });
+
+  } catch (err) {
+    document.getElementById('forecast-stats').innerHTML = `<div style="color:var(--danger);font-size:13px">Error: ${err.message}</div>`;
+  }
+}
+
+function closeForecast() {
+  document.getElementById('forecast-modal').style.display = 'none';
+}
+
+// ── ANOMALY DETECTION ─────────────────────────────────────────────────────────
+async function runAnomalyDetection() {
+  if (!datasetLoaded) return;
+  addSysMessage('🚨 Running anomaly detection agent…');
+  const tid = appendTyping();
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const res  = await fetch(`${API}/anomalies`);
+    const data = await res.json();
+    removeTyping(tid);
+
+    const tips = data.found
+      ? ["Review high-risk transactions with your finance team", "Set up automated alerts for outlier values", "Cross-check flagged vendors against approved vendor list"]
+      : ["Your data looks clean — continue monitoring regularly", "Consider setting up periodic automated anomaly scans"];
+
+    appendBotMessage(
+      data.summary || (data.found ? `Found ${data.count} anomalies` : 'No anomalies detected'),
+      null, data.table, null,
+      [`🚨 **Anomaly Agent** ran statistical detection`, `  → ${data.summary}`],
+      data.found ? [`${data.count} anomalous records detected`, "Multiple detection methods applied: IQR, duplicates, round-number bias"] : ["Dataset appears clean by statistical measures"],
+      tips
+    );
+  } catch (err) {
+    removeTyping(tid);
+    addSysMessage(`❌ Anomaly detection error: ${err.message}`, 'error');
+  } finally {
+    document.getElementById('send-btn').disabled = false;
+  }
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function handleKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+function askSuggestion(btn) { document.getElementById('user-input').value = btn.textContent; sendMessage(); }
+
+async function sendMessage() {
+  const input = document.getElementById('user-input');
+  const msg   = input.value.trim();
+  if (!msg || !datasetLoaded) return;
+  input.value = ''; input.style.height = 'auto';
+
+  appendUserMessage(msg);
+  const tid = appendTyping();
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const res  = await fetch(`${API}/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    removeTyping(tid);
+    appendBotMessage(data.answer, data.chart, data.table, data.code, data.agent_log, data.insights, data.growth_tips);
+  } catch (err) {
+    removeTyping(tid);
+    appendBotMessage(`❌ Connection error: ${err.message}`, null, null, null, null, null, null);
+  } finally {
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('user-input').focus();
+  }
+}
+
+function appendUserMessage(text) {
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML += `
+    <div class="message user">
+      <div class="msg-avatar">👤</div>
+      <div class="msg-content"><div class="msg-bubble">${escHtml(text)}</div></div>
+    </div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addSysMessage(text, type = '') {
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML += `<div class="sys-msg ${type}">${escHtml(text)}</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+let typingCtr = 0;
+function appendTyping() {
+  const id = 'typing-' + (++typingCtr);
+  document.getElementById('messages').innerHTML += `
+    <div class="message bot" id="${id}">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+      </div>
+    </div>`;
+  document.getElementById('messages').scrollTop = 999999;
+  return id;
+}
+function removeTyping(id) { document.getElementById(id)?.remove(); }
+
+function appendBotMessage(text, chart, table, code, agentLog, insights, growthTips) {
+  const msgs = document.getElementById('messages');
+  const id   = 'msg-' + Date.now();
+
+  let chartHtml = '', tableHtml = '', codeHtml = '', agentHtml = '', insightsHtml = '';
+
+  if (chart) chartHtml = `<div class="chart-container" id="chart-${id}"></div>`;
+
+  if (table && table.length > 0 && !chart) tableHtml = buildTableHtml(table);
+
+  if ((insights && insights.length > 0) || (growthTips && growthTips.length > 0)) {
+    const insItems = (insights  || []).map((x,i) => `<div class="insight-item"><span class="insight-num">${i+1}.</span><span>${escHtml(x)}</span></div>`).join('');
+    const tipItems = (growthTips|| []).map((x,i) => `<div class="insight-item"><span class="insight-num">${i+1}.</span><span>${escHtml(x)}</span></div>`).join('');
+    insightsHtml = `
+      <div class="insights-block">
+        <div class="insights-card insights-panel"><div class="insights-card-title">💡 Insights</div>${insItems}</div>
+        <div class="insights-card tips-panel">   <div class="insights-card-title">🚀 Growth Tips</div>${tipItems}</div>
+      </div>`;
+  }
+
+  if (agentLog && agentLog.length > 0) {
+    const aid   = 'agent-' + id;
+    const lines = agentLog.map(line => {
+      let cls = 'agent-log-line';
+      if (line.startsWith('🧠')) cls += ' planner';
+      else if (line.startsWith('⚙️')) cls += ' executor';
+      else if (line.startsWith('🔍')) cls += ' critic';
+      else cls += ' step';
+      return `<div class="${cls}">${formatText(line)}</div>`;
+    }).join('');
+    agentHtml = `
+      <div class="agent-toggle" onclick="toggleEl('${aid}')">🤖 Agent reasoning (${agentLog.length} steps)</div>
+      <div class="agent-log" id="${aid}">${lines}</div>`;
+  }
+
+  if (code) {
+    const cid = 'code-' + id;
+    codeHtml = `
+      <div class="code-toggle" onclick="toggleEl('${cid}')">⚡ View generated code</div>
+      <pre class="code-block" id="${cid}">${escHtml(code)}</pre>`;
+  }
+
+  msgs.innerHTML += `
+    <div class="message bot" id="${id}">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div class="msg-bubble">${formatText(text)}</div>
+        ${agentHtml}
+        ${chartHtml}
+        ${tableHtml}
+        ${insightsHtml}
+        ${codeHtml}
+      </div>
+    </div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  if (chart) {
+    // Small delay so DOM is ready
+    setTimeout(() => renderChart('chart-' + id, chart), 50);
+  }
+}
+
+function buildTableHtml(rows) {
+  if (!rows || rows.length === 0) return '';
+  const keys = Object.keys(rows[0]);
+  let html = `<div class="table-wrapper"><table><thead><tr>`;
+  keys.forEach(k => { html += `<th>${escHtml(String(k))}</th>`; });
+  html += `</tr></thead><tbody>`;
+  rows.forEach(row => {
+    html += '<tr>';
+    keys.forEach(k => { html += `<td>${escHtml(String(row[k] ?? ''))}</td>`; });
+    html += '</tr>';
+  });
+  return html + '</tbody></table></div>';
+}
+
+function renderChart(containerId, spec) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.style.height = '380px';
+
+  const layout = {
+    title:       { text: spec.title, font: { color: '#e2e8f0', size: 13 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: '#0e1420',
+    font:        { color: '#94a3b8', family: 'JetBrains Mono', size: 10 },
+    margin:      { t: 50, l: 70, r: 30, b: 80 },
+    height:      360, autosize: true,
+    xaxis: { title: { text: spec.x_label || '', font: { size: 10 } }, color: '#64748b', gridcolor: '#141c2e', linecolor: '#1f2d44', tickfont: { size: 9 }, automargin: true },
+    yaxis: { title: { text: spec.y_label || '', font: { size: 10 } }, color: '#64748b', gridcolor: '#1f2d44', linecolor: '#1f2d44', tickfont: { size: 9 }, automargin: true },
+  };
+
+  const colors = ['#00e5c0','#3b82f6','#f97316','#f59e0b','#a855f7','#ec4899','#22c55e','#ef4444'];
+  let trace;
+  if (spec.type === 'pie') {
+    trace = { type: 'pie', labels: spec.labels, values: spec.values, marker: { colors }, hole: 0.4, textfont: { color: '#e2e8f0' } };
+  } else if (spec.type === 'line') {
+    trace = { type: 'scatter', mode: 'lines+markers', x: spec.x, y: spec.y, line: { color: '#00e5c0', width: 2 }, marker: { color: '#00e5c0', size: 5 } };
+  } else if (spec.type === 'scatter') {
+    trace = { type: 'scatter', mode: 'markers', x: spec.x, y: spec.y, marker: { color: '#3b82f6', size: 7, opacity: 0.7 } };
+  } else {
+    trace = { type: 'bar', x: spec.x, y: spec.y, marker: { color: '#00e5c0', opacity: 0.85 } };
+  }
+
+  Plotly.newPlot(el, [trace], layout, { responsive: true, displayModeBar: true, displaylogo: false, modeBarButtonsToRemove: ['select2d','lasso2d'] })
+    .then(() => Plotly.Plots.resize(el));
+}
+
+function toggleEl(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'flex' || el.style.display === 'block' ? 'none' : (el.classList.contains('agent-log') ? 'flex' : 'block');
+}
+
+function formatText(text) {
+  return escHtml(text)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

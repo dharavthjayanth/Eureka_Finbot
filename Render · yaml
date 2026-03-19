@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: finbot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false        # You'll enter this manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    plan: free             # Change to "starter" for more RAM (needed for large files)
+    healthCheckPath: /health
