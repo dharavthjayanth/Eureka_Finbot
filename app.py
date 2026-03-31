@@ -1,6 +1,7 @@
 """
-Financial Chatbot Backend - FastAPI + Pandas
+Financial Chatbot Backend — FastAPI + Pandas
 Handles 1GB+ Excel/CSV datasets with AI-powered analysis
+Powered by Claude API (Anthropic)
 """
 
 import os
@@ -20,9 +21,8 @@ import uvicorn
 
 from chatbot import FinancialChatbot
 
-app = FastAPI(title="Financial Chatbot API")
+app = FastAPI(title="FinBot — Financial Intelligence API")
 
-# Allow frontend to call backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +35,7 @@ frontend_path = Path(__file__).parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
 
-# Global state: loaded dataframe + chatbot instance
+# Global state
 state = {
     "df": None,
     "chatbot": None,
@@ -48,6 +48,11 @@ state = {
 class ChatRequest(BaseModel):
     message: str
 
+class FilterRequest(BaseModel):
+    text: str
+
+class ForecastRequest(BaseModel):
+    periods: int = 6
 
 
 @app.get("/health")
@@ -69,7 +74,6 @@ async def upload_file(file: UploadFile = File(...)):
         filename = file.filename or "data"
         content = await file.read()
 
-        # Load based on extension
         if filename.endswith(".csv"):
             df = pd.read_csv(
                 pd.io.common.BytesIO(content),
@@ -85,7 +89,7 @@ async def upload_file(file: UploadFile = File(...)):
         # Clean column names
         df.columns = [str(c).strip() for c in df.columns]
 
-        # Try to parse date columns
+        # Auto-parse date columns
         for col in df.columns:
             if "date" in col.lower():
                 try:
@@ -93,7 +97,7 @@ async def upload_file(file: UploadFile = File(...)):
                 except Exception:
                     pass
 
-        # Try to parse numeric columns
+        # Auto-parse numeric columns
         for col in df.columns:
             if df[col].dtype == object:
                 try:
@@ -109,7 +113,6 @@ async def upload_file(file: UploadFile = File(...)):
         state["shape"] = df.shape
         state["chatbot"] = FinancialChatbot(df)
 
-        # Build summary
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         date_cols = df.select_dtypes(include=["datetime64"]).columns.tolist()
         cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
@@ -135,25 +138,21 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    """Send a message and get an AI response with optional chart data."""
     if state["df"] is None or state["chatbot"] is None:
         raise HTTPException(status_code=400, detail="No dataset loaded. Please upload a file first.")
-
     try:
         result = state["chatbot"].answer(req.message)
         return result
     except Exception as e:
         return {
             "answer": f"Sorry, I encountered an error: {str(e)}",
-            "chart": None,
-            "table": None,
+            "chart": None, "table": None,
             "error": traceback.format_exc(),
         }
 
 
 @app.get("/info")
 def dataset_info():
-    """Return current dataset info."""
     if state["df"] is None:
         return {"loaded": False}
     df = state["df"]
@@ -167,35 +166,25 @@ def dataset_info():
     }
 
 
-class FilterRequest(BaseModel):
-    text: str
-
 @app.post("/filter")
 async def apply_filter(req: FilterRequest):
-    """Apply a natural language filter to the dataset."""
     if state["chatbot"] is None:
         raise HTTPException(status_code=400, detail="No dataset loaded.")
     result = state["chatbot"].apply_filter(req.text)
-    # Update state df reference to match chatbot's filtered view
     state["df"] = state["chatbot"].df
     return result
 
 
 @app.get("/kpis")
 async def get_kpis():
-    """Compute and return 8 KPI metrics for the current data view."""
     if state["chatbot"] is None:
         raise HTTPException(status_code=400, detail="No dataset loaded.")
     kpis = state["chatbot"].compute_kpis()
     return {"kpis": kpis, "filter_active": state["chatbot"].active_filter_desc}
 
 
-class ForecastRequest(BaseModel):
-    periods: int = 6
-
 @app.post("/forecast")
 async def get_forecast(req: ForecastRequest):
-    """Run trend forecast on the best date+value column pair."""
     if state["chatbot"] is None:
         raise HTTPException(status_code=400, detail="No dataset loaded.")
     return state["chatbot"].get_forecast(periods=req.periods)
@@ -203,7 +192,6 @@ async def get_forecast(req: ForecastRequest):
 
 @app.get("/anomalies")
 async def detect_anomalies():
-    """Run anomaly detection agent on current data view."""
     if state["chatbot"] is None:
         raise HTTPException(status_code=400, detail="No dataset loaded.")
     return state["chatbot"].detect_anomalies()
